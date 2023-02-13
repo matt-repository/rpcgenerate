@@ -17,7 +17,7 @@ $ rpcgenerate -h
 
 Usage of sql2pb:
   -db string
-        the database type (default "mysql")
+        the database type (default "mysql|sqlserver")
   -field_style string
         gen protobuf field style, sql_pb | sqlPb (default "sqlPb")
   -go_package string
@@ -43,12 +43,14 @@ Usage of sql2pb:
   -user string
         the database user (default "root")
   -file_type string 
-        generate file type ,proto|c#_service
+        generate file type ,proto|csharp_service
 
 ```
 
 ```
 $ rpcgenerate  -host localhost -package pb -password root -port 3306 -schema usercenter -service_name usersrv -user root > usersrv.proto
+$ rpcgenerate  -host -db sqlserver localhost -package pb -password 123456 -schema test -service_name Tester -user sa -file_type csharp_service   > TestService.cs
+
 ```
 
 
