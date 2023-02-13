@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/mattn/go-adodb"
 )
 
 func main() {
@@ -29,17 +30,28 @@ func main() {
 	flag.Parse()
 
 	if *schema == "" {
+
 		fmt.Println(" - please input the database schema ")
 		return
 	}
 
 	if *fileType != "proto" && *fileType != "c#_service" {
+		fmt.Println(*fileType)
 		fmt.Println(" - please input fileType proto|c#_service")
 		return
 	}
 
 	connStr := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", *user, *password, *host, *port, *schema)
-	db, err := sql.Open(*dbType, connStr)
+	if *dbType == "sqlserver" {
+		var conf []string
+		conf = append(conf, "Provider=SQLOLEDB")
+		conf = append(conf, fmt.Sprintf("Data Source=%s", *host))       // sqlserver IP 和 服务器名称
+		conf = append(conf, fmt.Sprintf("Initial Catalog=%s", *schema)) // 数据库名
+		conf = append(conf, fmt.Sprintf("user id=%s", *user))           // 登陆用户名
+		conf = append(conf, fmt.Sprintf("password=%s", *password))      // 登陆密码
+		connStr = strings.Join(conf, ";")
+	}
+	db, err := sql.Open("adodb", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,7 +63,7 @@ func main() {
 
 	switch *fileType {
 	case "proto":
-		s, err := core.GenerateProto(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *fieldStyle)
+		s, err := core.GenerateProto(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *fieldStyle, *dbType)
 		if nil != err {
 			log.Fatal(err)
 		}
@@ -60,7 +72,7 @@ func main() {
 			fmt.Println(s)
 		}
 	case "c#_service":
-		s, err := core.GenerateCSharpService(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *fieldStyle)
+		s, err := core.GenerateCSharpService(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *fieldStyle, *schema, *dbType)
 		if nil != err {
 			log.Fatal(err)
 		}
