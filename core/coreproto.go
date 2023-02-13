@@ -20,8 +20,11 @@ const (
 
 	// indent represents the indentation amount for fields. the style guide suggests
 	// two spaces
-	indent = "  "
-
+	indent  = "    "
+	indent2 = "        "
+	indent3 = "            "
+	indent4 = "                "
+	indent5 = "                    "
 	// gen protobuf field style
 	fieldStyleToCamelWithStartLower = "sqlPb"
 	fieldStyleToSnake               = "sql_pb"
@@ -34,10 +37,10 @@ const (
 // Do not rely on the structure of the Generated schema to provide any context about
 // the protobuf types. The schema reflects the layout of a protobuf file and should be used
 // to pipe the output of the `Schema.String()` to a file.
-func GenerateProto(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, pkg, fieldStyle string) (*Schema, error) {
+func GenerateProto(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, pkg, fieldStyle, dbType string) (*Schema, error) {
 	s := &Schema{}
 
-	dbs, err := dbSchema(db)
+	dbs, err := dbSchema(db, dbType)
 	if nil != err {
 		return nil, err
 	}
@@ -48,7 +51,7 @@ func GenerateProto(db *sql.DB, table string, ignoreTables, ignoreColumns []strin
 		s.Package = pkg
 	}
 
-	cols, err := dbColumns(db, dbs, table)
+	cols, err := dbColumns(db, dbs, table, dbType)
 	if nil != err {
 		return nil, err
 	}
@@ -61,11 +64,6 @@ func GenerateProto(db *sql.DB, table string, ignoreTables, ignoreColumns []strin
 	sort.Sort(s.Messages)
 	sort.Sort(s.Enums)
 
-	return s, nil
-}
-
-func GenerateCSharpService(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, pkg, fieldStyle string) (*Schema, error) {
-	s := &Schema{}
 	return s, nil
 }
 
@@ -111,29 +109,41 @@ func typesFromColumns(s *Schema, cols []Column, ignoreTables, ignoreColumns []st
 	return nil
 }
 
-func dbSchema(db *sql.DB) (string, error) {
+func dbSchema(db *sql.DB, dbType string) (string, error) {
 	var schema string
+	switch dbType {
 
-	err := db.QueryRow("SELECT SCHEMA()").Scan(&schema)
-
-	return schema, err
+	case "mysql":
+		err := db.QueryRow("SELECT SCHEMA()").Scan(&schema)
+		return schema, err
+	case "sqlserver":
+		err := db.QueryRow("Select top 1 Name From Master..SysDataBases Where DbId=(Select Dbid From Master..SysProcesses Where Spid = @@spid)").Scan(&schema)
+		return schema, err
+	}
+	return schema, nil
 }
 
-func dbColumns(db *sql.DB, schema, table string) ([]Column, error) {
+func dbColumns(db *sql.DB, schema, table, dbType string) ([]Column, error) {
 
 	tableArr := strings.Split(table, ",")
+	q := ""
+	switch dbType {
+	case "mysql":
+		q = "SELECT c.TABLE_NAME, c.COLUMN_NAME, c.IS_NULLABLE, c.DATA_TYPE, " +
+			"c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, c.NUMERIC_SCALE, c.COLUMN_TYPE ,c.COLUMN_COMMENT,t.TABLE_COMMENT " +
+			"FROM INFORMATION_SCHEMA.COLUMNS as c  LEFT JOIN  INFORMATION_SCHEMA.TABLES as t  on c.TABLE_NAME = t.TABLE_NAME and  c.TABLE_SCHEMA = t.TABLE_SCHEMA" +
+			" WHERE c.TABLE_SCHEMA = ?"
 
-	q := "SELECT c.TABLE_NAME, c.COLUMN_NAME, c.IS_NULLABLE, c.DATA_TYPE, " +
-		"c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, c.NUMERIC_SCALE, c.COLUMN_TYPE ,c.COLUMN_COMMENT,t.TABLE_COMMENT " +
-		"FROM INFORMATION_SCHEMA.COLUMNS as c  LEFT JOIN  INFORMATION_SCHEMA.TABLES as t  on c.TABLE_NAME = t.TABLE_NAME and  c.TABLE_SCHEMA = t.TABLE_SCHEMA" +
-		" WHERE c.TABLE_SCHEMA = ?"
-
+	case "sqlserver":
+		q = "SELECT c.TABLE_NAME, c.COLUMN_NAME, c.IS_NULLABLE, c.DATA_TYPE, " +
+			"c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, c.NUMERIC_SCALE,  c.Data_TYPE AS COLUMN_TYPE,'' as COLUMN_COMMENT,'' as TABLE_COMMENT" +
+			"FROM INFORMATION_SCHEMA.COLUMNS as c  LEFT JOIN  INFORMATION_SCHEMA.TABLES as t  on c.TABLE_NAME = t.TABLE_NAME and  c.TABLE_SCHEMA = t.TABLE_SCHEMA" +
+			" WHERE c.TABLE_CATALOG = ?"
+	}
 	if table != "" && table != "*" {
 		q += " AND c.TABLE_NAME IN('" + strings.TrimRight(strings.Join(tableArr, "' ,'"), ",") + "')"
 	}
-
 	q += " ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION"
-
 	rows, err := db.Query(q, schema)
 	defer rows.Close()
 	if nil != err {
@@ -534,41 +544,6 @@ func (m Message) GenRpcDelReqMessage(buf *bytes.Buffer) {
 	m.Fields = mOrginFields
 }
 
-// GenRpcGetByIdReqMessage gen add resp message
-func (m Message) GenRpcGetByIdReqMessage(buf *bytes.Buffer) {
-	mOrginName := m.Name
-	mOrginFields := m.Fields
-
-	m.Name = "Get" + mOrginName + "ByIdRequest"
-	m.Fields = []MessageField{
-		{Name: "id", Typ: "int64", tag: 1, Comment: "id"},
-	}
-	buf.WriteString(fmt.Sprintf("%s\n", m))
-
-	//reset
-	m.Name = mOrginName
-	m.Fields = mOrginFields
-
-	//resp
-	firstWord := strings.ToLower(string(m.Name[0]))
-	m.Name = "Get" + mOrginName + "ByIdReply"
-
-	name := stringx.From(firstWord + mOrginName[1:]).ToCamelWithStartLower()
-	comment := stringx.From(firstWord + mOrginName[1:]).ToCamelWithStartLower()
-	if m.Style == fieldStyleToSnake {
-		name = stringx.From(firstWord + mOrginName[1:]).ToSnake()
-		comment = stringx.From(firstWord + mOrginName[1:]).ToSnake()
-	}
-	m.Fields = []MessageField{
-		{Typ: mOrginName, Name: name, tag: 1, Comment: comment},
-	}
-	buf.WriteString(fmt.Sprintf("%s\n", m))
-
-	//reset
-	m.Name = mOrginName
-	m.Fields = mOrginFields
-}
-
 // GenRpcGetPageListReqMessage gen add resp message
 func (m Message) GenRpcGetPageListReqMessage(buf *bytes.Buffer) {
 	mOrginName := m.Name
@@ -623,7 +598,7 @@ func (m Message) GenRpcGetPageListReqMessage(buf *bytes.Buffer) {
 	firstWord := strings.ToLower(string(m.Name[0]))
 	m.Name = "GetPageList" + mOrginName + "Reply"
 
-	name := stringx.From(firstWord + mOrginName[1:]).ToCamelWithStartLower()
+	name := stringx.From(firstWord+mOrginName[1:]).ToCamelWithStartLower() + "s"
 	comment := stringx.From(firstWord + mOrginName[1:]).ToCamelWithStartLower()
 	if m.Style == fieldStyleToSnake {
 		name = stringx.From(firstWord + mOrginName[1:]).ToSnake()
