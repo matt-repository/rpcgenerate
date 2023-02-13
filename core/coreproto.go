@@ -136,7 +136,7 @@ func dbColumns(db *sql.DB, schema, table, dbType string) ([]Column, error) {
 
 	case "sqlserver":
 		q = "SELECT c.TABLE_NAME, c.COLUMN_NAME, c.IS_NULLABLE, c.DATA_TYPE, " +
-			"c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, c.NUMERIC_SCALE,  c.Data_TYPE AS COLUMN_TYPE,'' as COLUMN_COMMENT,'' as TABLE_COMMENT" +
+			"c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, c.NUMERIC_SCALE,  c.Data_TYPE AS COLUMN_TYPE,'' as COLUMN_COMMENT,'' as TABLE_COMMENT " +
 			"FROM INFORMATION_SCHEMA.COLUMNS as c  LEFT JOIN  INFORMATION_SCHEMA.TABLES as t  on c.TABLE_NAME = t.TABLE_NAME and  c.TABLE_SCHEMA = t.TABLE_SCHEMA" +
 			" WHERE c.TABLE_CATALOG = ?"
 	}
@@ -703,7 +703,7 @@ func parseColumn(s *Schema, msg *Message, col Column) error {
 	var fieldType string
 
 	switch typ {
-	case "char", "varchar", "text", "longtext", "mediumtext", "tinytext":
+	case "char", "nchar", "varchar", "text", "longtext", "mediumtext", "tinytext":
 		fieldType = "string"
 	case "enum", "set":
 		// Parse c.ColumnType to get the enum list

@@ -41,7 +41,6 @@ func typesFromColumnsCSharp(s *SchemaCSharp, cols []Column, ignoreTables, ignore
 	for _, ic := range ignoreColumns {
 		ignoreColumnMap[ic] = true
 	}
-
 	for _, c := range cols {
 		if _, ok := ignoreMap[c.TableName]; ok {
 			continue
@@ -63,7 +62,6 @@ func typesFromColumnsCSharp(s *SchemaCSharp, cols []Column, ignoreTables, ignore
 			return err
 		}
 	}
-
 	for _, v := range messageMap {
 		s.Messages = append(s.Messages, v)
 	}
@@ -76,9 +74,24 @@ func typesFromColumnsCSharp(s *SchemaCSharp, cols []Column, ignoreTables, ignore
 func parseColumnCSharp(s *SchemaCSharp, msg *MessageCSharp, col Column) error {
 	typ := strings.ToLower(col.DataType)
 	var fieldType string
+	fieldType = dataTypeConvert(typ)
+	if "" == fieldType {
+		return fmt.Errorf("no compatible protobuf type found for `%s`. column: `%s`.`%s`", col.DataType, col.TableName, col.ColumnName)
+	}
+	field := NewMessageFieldCSharp(fieldType, col.ColumnName)
 
+	err := msg.AppendFieldCSharp(field)
+	if nil != err {
+		return err
+	}
+
+	return nil
+}
+
+func dataTypeConvert(typ string) string {
+	fieldType := ""
 	switch typ {
-	case "char", "varchar", "text", "longtext", "mediumtext", "tinytext":
+	case "char", "nchar", "varchar", "text", "longtext", "mediumtext", "tinytext":
 		fieldType = "string"
 
 	case "blob", "mediumblob", "longblob", "varbinary", "binary":
@@ -96,24 +109,12 @@ func parseColumnCSharp(s *SchemaCSharp, msg *MessageCSharp, col Column) error {
 	case "json":
 		fieldType = "string"
 	}
-
-	if "" == fieldType {
-		return fmt.Errorf("no compatible protobuf type found for `%s`. column: `%s`.`%s`", col.DataType, col.TableName, col.ColumnName)
-	}
-	field := NewMessageFieldCSharp(fieldType, col.ColumnName)
-
-	err := msg.AppendFieldCSharp(field)
-	if nil != err {
-		return err
-	}
-
-	return nil
+	return fieldType
 }
 
 // AppendFieldCSharp appends a message field to a message. If the tag of the message field is in use, an error will be returned.
 func (m *MessageCSharp) AppendFieldCSharp(mf MessageFieldCSharp) error {
 	m.Fields = append(m.Fields, mf)
-
 	return nil
 }
 
@@ -183,22 +184,6 @@ type MessageFieldCSharp struct {
 	Name string
 }
 
-// String returns a string representation of a Message.
-func (m MessageCSharp) String() string {
-	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("message %s {\n", m.Name))
-
-	if m.Messages != nil && len(m.Messages) > 0 {
-		for _, f := range m.Messages {
-			buf.WriteString(fmt.Sprintf("%smessage %s {\n", indent, f.Name))
-			buf.WriteString(fmt.Sprintf("%s}\n", indent))
-		}
-	}
-	buf.WriteString("}\n")
-
-	return buf.String()
-}
-
 // NewMessageFieldCSharp creates a new message field.
 func NewMessageFieldCSharp(typ, name string) MessageFieldCSharp {
 	return MessageFieldCSharp{typ, name}
@@ -206,7 +191,7 @@ func NewMessageFieldCSharp(typ, name string) MessageFieldCSharp {
 
 func (m MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "AddList")
-	buf.WriteString(fmt.Sprintf("%svar result= new AddListt%sReply;\n", indent3, m.Name))
+	buf.WriteString(fmt.Sprintf("%svar result= new AddList%sReply;\n", indent3, m.Name))
 	buf.WriteString(fmt.Sprintf("%sif (request.%ss.Count()==0)\n", indent3, m.Name))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sresult.Code = 201;\n", indent4))
@@ -308,13 +293,10 @@ func (m MessageCSharp) GenRpcGetPageListCSharpService(buf *bytes.Buffer) {
 }
 
 func (m MessageCSharp) rpcStart(buf *bytes.Buffer, funcType string) {
-	//mOrginFields := m.Fields
-	//fmt.Println(mOrginFields)
 	funcName := funcType + m.Name
 	request := funcName + "Request"
 	reply := funcName + "Reply"
 
 	buf.WriteString(fmt.Sprintf("%spublic override Task<%s> %s(%s request, ServerCallContext context)\n", indent2, reply, funcName, request))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent2))
-
 }
