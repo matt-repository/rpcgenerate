@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"github.com/serenize/snaker"
+	"rpcgenerate/tools/stringx"
 	"strings"
 )
 
-func GenerateCSharpService(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, pkg, fieldStyle string, schema, dbType string) (*SchemaCSharp, error) {
+func GenerateCSharpService(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, pkg, schema, dbType string) (*SchemaCSharp, error) {
 	s := &SchemaCSharp{}
 	dbs, err := dbSchema(db, dbType)
 	if nil != err {
@@ -49,7 +49,8 @@ func typesFromColumnsCSharp(s *SchemaCSharp, cols []Column, ignoreTables, ignore
 			continue
 		}
 
-		messageName := snaker.SnakeToCamel(c.TableName)
+		messageName := stringx.From(c.TableName).ToCamel()
+
 		//messageName = inflect.Singularize(messageName)
 
 		msg, ok := messageMap[messageName]
@@ -57,7 +58,7 @@ func typesFromColumnsCSharp(s *SchemaCSharp, cols []Column, ignoreTables, ignore
 			messageMap[messageName] = &MessageCSharp{Name: messageName, EfContextName: s.EfContextName}
 			msg = messageMap[messageName]
 		}
-		err := parseColumnCSharp(s, msg, c)
+		err := parseColumnCSharp(msg, c)
 		if nil != err {
 			return err
 		}
@@ -71,7 +72,7 @@ func typesFromColumnsCSharp(s *SchemaCSharp, cols []Column, ignoreTables, ignore
 
 // parseColumn parses a column and inserts the relevant fields in the Message. If an enumerated type is encountered, an Enum will
 // be added to the Schema. Returns an error if an incompatible protobuf data type cannot be found for the database column type.
-func parseColumnCSharp(s *SchemaCSharp, msg *MessageCSharp, col Column) error {
+func parseColumnCSharp(msg *MessageCSharp, col Column) error {
 	typ := strings.ToLower(col.DataType)
 	var fieldType string
 	fieldType = dataTypeConvert(typ)
@@ -102,7 +103,9 @@ func dataTypeConvert(typ string) string {
 		fieldType = "int64"
 	case "bool", "bit":
 		fieldType = "bool"
-	case "tinyint", "smallint", "int", "mediumint", "bigint":
+	case "tinyint", "smallint", "mediumint", "int":
+		fieldType = "int32"
+	case "bigint":
 		fieldType = "int64"
 	case "float", "decimal", "double":
 		fieldType = "double"
@@ -124,6 +127,7 @@ func (s *SchemaCSharp) String() string {
 	buf.WriteString("using System;\n")
 	buf.WriteString("using System.Collections.Generic;\n")
 	buf.WriteString("using System.Linq;\n")
+	buf.WriteString("using Grpc.Core;\n")
 	buf.WriteString("using System.Threading.Tasks;\n")
 	buf.WriteString(fmt.Sprintf("using %s;\n", s.Package))
 	buf.WriteString("\n")
@@ -133,11 +137,11 @@ func (s *SchemaCSharp) String() string {
 	buf.WriteString(fmt.Sprintf("%s/// <summary>\n", indent))
 	buf.WriteString(fmt.Sprintf("%s/// %s \n", indent, s.ServiceName))
 	buf.WriteString(fmt.Sprintf("%s/// </summary>\n", indent))
-	buf.WriteString(fmt.Sprintf("%spublic class %s :%s.%sBase \n", indent, s.ServiceName, strings.Replace(s.Package, "Proto", "er", 1),
-		strings.Replace(s.Package, "Proto", "erBase", 1)))
+	packageer := strings.Replace(s.Package, "Proto", "er", 1)
+	buf.WriteString(fmt.Sprintf("%spublic class %s :%s.%sBase \n", indent, strings.Replace(s.ServiceName, "er", "Service", 1), packageer, packageer))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent))
 	buf.WriteString(fmt.Sprintf("%sprivate readonly %s _%s;\n", indent2, s.EfContextName, s.EfContextName))
-	buf.WriteString(fmt.Sprintf("%spublic %s(%s %s);\n", indent2, s.ServiceName, s.EfContextName, s.EfContextName))
+	buf.WriteString(fmt.Sprintf("%spublic %s(%s %s)\n", indent2, strings.Replace(s.ServiceName, "er", "Service", 1), s.EfContextName, s.EfContextName))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent2))
 
 	buf.WriteString(fmt.Sprintf("%s _%s=%s;\n", indent3, s.EfContextName, s.EfContextName))
@@ -191,8 +195,8 @@ func NewMessageFieldCSharp(typ, name string) MessageFieldCSharp {
 
 func (m MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "AddList")
-	buf.WriteString(fmt.Sprintf("%svar result= new AddList%sReply;\n", indent3, m.Name))
-	buf.WriteString(fmt.Sprintf("%sif (request.%ss.Count()==0)\n", indent3, m.Name))
+
+	buf.WriteString(fmt.Sprintf("%sif (request.%ss.Count==0)\n", indent3, m.Name))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sresult.Code = 201;\n", indent4))
 	buf.WriteString(fmt.Sprintf("%sresult.Msg = \"Data cannot be empty\";\n", indent4))
@@ -208,7 +212,7 @@ func (m MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
 	for _, v := range m.Fields {
 		buf.WriteString(fmt.Sprintf("%s%s = item.%s,\n", indent5, v.Name, v.Name))
 	}
-	buf.WriteString(fmt.Sprintf("%s}\n", indent4))
+	buf.WriteString(fmt.Sprintf("%s};\n", indent4))
 	buf.WriteString(fmt.Sprintf("%s_%s.%s.Add(model);\n", indent4, m.EfContextName, m.Name))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent3))
 
@@ -222,16 +226,15 @@ func (m MessageCSharp) GenRpcEditCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "Edit")
 	buf.WriteString(fmt.Sprintf("%svar data = _%s.%s.FirstOrDefault(w => w.Id == request.Id);\n", indent3, m.EfContextName, m.Name))
 	buf.WriteString(fmt.Sprintf("%sif(data == null)\n", indent3))
-	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(new Del%sReply { Code = 201, Msg = \"Not Exist!\" });\n", indent4, m.Name))
+	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(new Edit%sReply { Code = 201, Msg = \"Not Exist!\" });\n", indent4, m.Name))
 	for _, v := range m.Fields {
 		if v.Name != "Id" {
-			buf.WriteString(fmt.Sprintf("%sdata.%s = request.%s,\n", indent3, v.Name, v.Name))
+			buf.WriteString(fmt.Sprintf("%sdata.%s = request.%s;\n", indent3, v.Name, v.Name))
 		}
 	}
 	buf.WriteString(fmt.Sprintf("%s_%s.SaveChanges();\n", indent3, m.EfContextName))
 	buf.WriteString(fmt.Sprintf("%sresult.Code = 200;\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(result);\n", indent3))
-	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 }
 func (m MessageCSharp) GenRpcDelCSharpService(buf *bytes.Buffer) {
@@ -239,7 +242,7 @@ func (m MessageCSharp) GenRpcDelCSharpService(buf *bytes.Buffer) {
 	buf.WriteString(fmt.Sprintf("%svar data = _%s.%s.FirstOrDefault(w => w.Id == request.Id);\n", indent3, m.EfContextName, m.Name))
 	buf.WriteString(fmt.Sprintf("%sif(data == null)\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(new Del%sReply { Code = 201, Msg = \"Not Exist!\" });\n", indent4, m.Name))
-	buf.WriteString(fmt.Sprintf("%s_%s.%s.Remove(data)\n", indent3, m.EfContextName, m.Name))
+	buf.WriteString(fmt.Sprintf("%s_%s.%s.Remove(data);\n", indent3, m.EfContextName, m.Name))
 	buf.WriteString(fmt.Sprintf("%s_%s.SaveChanges();\n", indent3, m.EfContextName))
 	buf.WriteString(fmt.Sprintf("%sresult.Code = 200;\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(result);\n", indent3))
@@ -247,7 +250,6 @@ func (m MessageCSharp) GenRpcDelCSharpService(buf *bytes.Buffer) {
 }
 func (m MessageCSharp) GenRpcGetPageListCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "GetPageList")
-	buf.WriteString(fmt.Sprintf("%svar result= new GetPageList%sReply;\n", indent3, m.Name))
 	buf.WriteString(fmt.Sprintf("%svar query = _%s.%s.AsQueryable();\n", indent3, m.EfContextName, m.Name))
 	buf.WriteString(fmt.Sprintf("%sif (request.Wheres != null)\n", indent3))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent3))
@@ -284,7 +286,7 @@ func (m MessageCSharp) GenRpcGetPageListCSharpService(buf *bytes.Buffer) {
 	for _, v := range m.Fields {
 		buf.WriteString(fmt.Sprintf("%s%s = item.%s,\n", indent5, v.Name, v.Name))
 	}
-	buf.WriteString(fmt.Sprintf("%s}\n", indent4))
+	buf.WriteString(fmt.Sprintf("%s};\n", indent4))
 	buf.WriteString(fmt.Sprintf("%sresult.%ss.Add(model);\n", indent4, m.Name))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent3))
 
@@ -299,4 +301,5 @@ func (m MessageCSharp) rpcStart(buf *bytes.Buffer, funcType string) {
 
 	buf.WriteString(fmt.Sprintf("%spublic override Task<%s> %s(%s request, ServerCallContext context)\n", indent2, reply, funcName, request))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent2))
+	buf.WriteString(fmt.Sprintf("%svar result= new %sReply();\n", indent3, funcName))
 }

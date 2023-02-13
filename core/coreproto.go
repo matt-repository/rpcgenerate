@@ -37,7 +37,7 @@ const (
 // Do not rely on the structure of the Generated schema to provide any context about
 // the protobuf types. The schema reflects the layout of a protobuf file and should be used
 // to pipe the output of the `Schema.String()` to a file.
-func GenerateProto(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, pkg, fieldStyle, dbType string) (*Schema, error) {
+func GenerateProto(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, pkg, dbType string) (*Schema, error) {
 	s := &Schema{}
 
 	dbs, err := dbSchema(db, dbType)
@@ -56,7 +56,7 @@ func GenerateProto(db *sql.DB, table string, ignoreTables, ignoreColumns []strin
 		return nil, err
 	}
 
-	err = typesFromColumns(s, cols, ignoreTables, ignoreColumns, fieldStyle)
+	err = typesFromColumns(s, cols, ignoreTables, ignoreColumns)
 	if nil != err {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func GenerateProto(db *sql.DB, table string, ignoreTables, ignoreColumns []strin
 }
 
 // typesFromColumns creates the appropriate schema properties from a collection of column types.
-func typesFromColumns(s *Schema, cols []Column, ignoreTables, ignoreColumns []string, fieldStyle string) error {
+func typesFromColumns(s *Schema, cols []Column, ignoreTables, ignoreColumns []string) error {
 	messageMap := map[string]*Message{}
 	ignoreMap := map[string]bool{}
 	ignoreColumnMap := map[string]bool{}
@@ -86,13 +86,13 @@ func typesFromColumns(s *Schema, cols []Column, ignoreTables, ignoreColumns []st
 		if _, ok := ignoreColumnMap[c.ColumnName]; ok {
 			continue
 		}
-
-		messageName := snaker.SnakeToCamel(c.TableName)
+		messageName := stringx.From(c.TableName).ToCamel()
+		//messageName := snaker.SnakeToCamel(c.TableName)
 		//messageName = inflect.Singularize(messageName)
 
 		msg, ok := messageMap[messageName]
 		if !ok {
-			messageMap[messageName] = &Message{Name: messageName, Comment: c.TableComment, Style: fieldStyle}
+			messageMap[messageName] = &Message{Name: messageName, Comment: c.TableComment}
 			msg = messageMap[messageName]
 		}
 
@@ -373,7 +373,6 @@ type Message struct {
 	Name     string
 	Comment  string
 	Fields   []MessageField
-	Style    string
 	Messages []*Message
 }
 
@@ -391,9 +390,6 @@ func (m Message) GenDefaultMessage(buf *bytes.Buffer) {
 		filedTag++
 		field.tag = filedTag
 		field.Name = stringx.From(field.Name).ToCamelWithStartLower()
-		if m.Style == fieldStyleToSnake {
-			field.Name = stringx.From(field.Name).ToSnake()
-		}
 
 		if field.Comment == "" {
 			field.Comment = field.Name
@@ -418,7 +414,7 @@ func (m Message) GenRpcAddListReqRespMessage(buf *bytes.Buffer) {
 	curField := MessageField{
 		Typ:     "repeated " + mOrginName,
 		tag:     1,
-		Name:    stringx.From(mOrginName + "s").ToSnake(),
+		Name:    stringx.From(mOrginName + "s").ToCamelWithStartLower(),
 		Comment: mOrginName + " datas",
 	}
 	m.Fields = []MessageField{curField}
@@ -467,9 +463,6 @@ func (m Message) GenRpcEditReqMessage(buf *bytes.Buffer) {
 		filedTag++
 		field.tag = filedTag
 		field.Name = stringx.From(field.Name).ToCamelWithStartLower()
-		if m.Style == fieldStyleToSnake {
-			field.Name = stringx.From(field.Name).ToSnake()
-		}
 		if field.Comment == "" {
 			field.Comment = field.Name
 		}
@@ -577,11 +570,7 @@ func (m Message) GenRpcGetPageListReqMessage(buf *bytes.Buffer) {
 		}
 		filedTag++
 		field.tag = filedTag
-
 		field.Name = stringx.From(field.Name).ToCamelWithStartLower()
-		if m.Style == fieldStyleToSnake {
-			field.Name = stringx.From(field.Name).ToSnake()
-		}
 		if field.Comment == "" {
 			field.Comment = field.Name
 		}
@@ -595,15 +584,9 @@ func (m Message) GenRpcGetPageListReqMessage(buf *bytes.Buffer) {
 	m.Fields = mOrginFields
 
 	//resp
-	firstWord := strings.ToLower(string(m.Name[0]))
 	m.Name = "GetPageList" + mOrginName + "Reply"
-
-	name := stringx.From(firstWord+mOrginName[1:]).ToCamelWithStartLower() + "s"
-	comment := stringx.From(firstWord + mOrginName[1:]).ToCamelWithStartLower()
-	if m.Style == fieldStyleToSnake {
-		name = stringx.From(firstWord + mOrginName[1:]).ToSnake()
-		comment = stringx.From(firstWord + mOrginName[1:]).ToSnake()
-	}
+	name := stringx.From(mOrginName).ToCamelWithStartLower() + "s"
+	comment := stringx.From(mOrginName).ToCamelWithStartLower()
 
 	m.Fields = []MessageField{
 		{Typ: "repeated " + mOrginName, Name: name, tag: 1, Comment: comment},
@@ -727,9 +710,12 @@ func parseColumn(s *Schema, msg *Message, col Column) error {
 	case "date", "time", "datetime", "timestamp":
 		//s.AppendImport("google/protobuf/timestamp.proto")
 		fieldType = "int64"
+
 	case "bool", "bit":
 		fieldType = "bool"
-	case "tinyint", "smallint", "int", "mediumint", "bigint":
+	case "tinyint", "smallint", "mediumint", "int":
+		fieldType = "int32"
+	case "bigint":
 		fieldType = "int64"
 	case "float", "decimal", "double":
 		fieldType = "double"

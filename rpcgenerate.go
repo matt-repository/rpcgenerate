@@ -24,22 +24,20 @@ func main() {
 	packageName := flag.String("package", *schema, "the protocol buffer package. defaults to the database schema.")
 	ignoreTableStr := flag.String("ignore_tables", "", "a comma spaced list of tables to ignore")
 	ignoreColumnStr := flag.String("ignore_columns", "", "a comma spaced list of mysql columns to ignore")
-	fieldStyle := flag.String("field_style", "sqlPb", "gen protobuf field style, sql_pb | sqlPb")
 	fileType := flag.String("file_type", "proto", "generate file type ,proto|csharp_service")
 
 	flag.Parse()
 
 	//test
 	//*dbType = "sqlserver"
-	//*host = "localhost"
+	//*host = "192.168.1.33"
 	//*user = "sa"
-	//*schema = "MattTest"
-	//*serviceName = "MattTestservice"
-	//*fileType = "proto"
-	//*packageName = "MattTestProto"
+	//*schema = "efosbasicsys"
+	//*serviceName = "apiservice"
+	//*fileType = "csharp_service"
+	//*packageName = " ApiProto"
 	//*port = 1433
-	//*password = "123456"
-	//
+	//*password = " Hietech123 "
 
 	if *schema == "" {
 
@@ -75,7 +73,7 @@ func main() {
 
 	switch *fileType {
 	case "proto":
-		s, err := core.GenerateProto(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *fieldStyle, *dbType)
+		s, err := core.GenerateProto(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *dbType)
 		if nil != err {
 			log.Fatal(err)
 		}
@@ -84,7 +82,7 @@ func main() {
 			fmt.Println(s)
 		}
 	case "csharp_service":
-		s, err := core.GenerateCSharpService(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *fieldStyle, *schema, *dbType)
+		s, err := core.GenerateCSharpService(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *schema, *dbType)
 		if nil != err {
 			log.Fatal(err)
 		}
