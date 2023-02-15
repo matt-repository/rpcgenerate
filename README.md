@@ -71,5 +71,4 @@ $ go get -u github.com/matt-repository/rpcgenerate@latest
 #### Thanks for 
     sql2pb : https://github.com/Mikaelemmmm/sql2pb
     schemabuf : https://github.com/mcos/schemabuf
-#### Have a problem adding wechat
-$ 943609
+#### Have a problem adding wechat: fq943609
