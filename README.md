@@ -52,7 +52,7 @@ Usage of sql2pb:
 
 ```
 $ rpcgenerate  -db mysql -host localhost -user root -password 123456 -package pb -port 3306 -schema test -service_name tester  > test.proto
-$ rpcgenerate -db mysql -host localhost -user root  -password 123456 -package pb -port 3306 -schema test -service_name TestService  -file_type csharp_service -table 'person' -ef_namespace "database.efosbasicsys" >test.cs 
+$ rpcgenerate -db mysql -host localhost -user root  -password 123456 -package pb -port 3306 -schema test -service_name testService  -file_type csharp_service -table 'person' -ef_namespace "database.test" >test.cs 
 
 ```
 
