@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/matt-repository/rpcgenerate/core"
 	"log"
-	"rpcgenerate/core"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -30,15 +30,15 @@ func main() {
 	flag.Parse()
 
 	//test
-	*dbType = "sqlserver"
-	*host = "192.168.1.33"
-	*user = "sa"
-	*schema = "efosbasicsys"
-	*serviceName = "AApier"
-	*fileType = "proto"
-	*packageName = "AApiProto"
-	*port = 1433
-	*password = "Hietech123"
+	//*dbType = "sqlserver"
+	//*host = "192.168.1.33"
+	//*user = "sa"
+	//*schema = "efosbasicsys"
+	//*serviceName = "AApier"
+	//*fileType = "proto"
+	//*packageName = "AApiProto"
+	//*port = 1433
+	//*password = "Hietech123"
 
 	if *schema == "" {
 		fmt.Println(" - please input the database schema ")

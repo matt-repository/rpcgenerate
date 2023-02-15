@@ -1,4 +1,4 @@
-module rpcgenerate
+module github.com/matt-repository/rpcgenerate
 
 go 1.18
 
@@ -13,6 +13,6 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.26.0 // indirect
-	golang.org/x/net v0.5.0 // indirect
-	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 )
