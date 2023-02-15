@@ -8,15 +8,22 @@ import (
 	"strings"
 )
 
-func GenerateCSharpService(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, pkg, schema, dbType string) (*SchemaCSharp, error) {
+func GenerateCSharpService(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, protoServiceName, pkg, schema, dbType, nameSpace, efNameSpace string) (*SchemaCSharp, error) {
 	s := &SchemaCSharp{}
 	dbs, err := dbSchema(db, dbType)
 	if nil != err {
 		return nil, err
 	}
-	s.NameSpace = "GrpcServices"
-	s.EfContextName = schema + "Context"
-	s.ServiceName = serviceName
+	s.NameSpace = nameSpace
+	s.Schema = schema
+	if serviceName != "Service" {
+		s.ServiceName = serviceName
+	} else {
+		s.ServiceName = schema + "Service"
+	}
+
+	s.ProtoServiceName = protoServiceName
+	s.EFNameSpace = efNameSpace
 	if "" != pkg {
 		s.Package = pkg
 	}
@@ -55,7 +62,7 @@ func typesFromColumnsCSharp(s *SchemaCSharp, cols []Column, ignoreTables, ignore
 
 		msg, ok := messageMap[messageName]
 		if !ok {
-			messageMap[messageName] = &MessageCSharp{Name: messageName, EfContextName: s.EfContextName}
+			messageMap[messageName] = &MessageCSharp{Name: messageName, Schema: s.Schema, EFNameSpace: s.EFNameSpace}
 			msg = messageMap[messageName]
 		}
 		err := parseColumnCSharp(msg, c)
@@ -79,7 +86,7 @@ func parseColumnCSharp(msg *MessageCSharp, col Column) error {
 	if "" == fieldType {
 		return fmt.Errorf("no compatible protobuf type found for `%s`. column: `%s`.`%s`", col.DataType, col.TableName, col.ColumnName)
 	}
-	field := NewMessageFieldCSharp(fieldType, col.ColumnName)
+	field := NewMessageFieldCSharp(fieldType, col.ColumnName, col.ColumnKey != "")
 
 	err := msg.AppendFieldCSharp(field)
 	if nil != err {
@@ -129,6 +136,7 @@ func (s *SchemaCSharp) String() string {
 	buf.WriteString("using System.Linq;\n")
 	buf.WriteString("using Grpc.Core;\n")
 	buf.WriteString("using System.Threading.Tasks;\n")
+	buf.WriteString(fmt.Sprintf("using %s;\n", s.EFNameSpace))
 	buf.WriteString(fmt.Sprintf("using %s;\n", s.Package))
 	buf.WriteString("\n")
 
@@ -137,14 +145,13 @@ func (s *SchemaCSharp) String() string {
 	buf.WriteString(fmt.Sprintf("%s/// <summary>\n", indent))
 	buf.WriteString(fmt.Sprintf("%s/// %s \n", indent, s.ServiceName))
 	buf.WriteString(fmt.Sprintf("%s/// </summary>\n", indent))
-	packageer := strings.Replace(s.Package, "Proto", "er", 1)
-	buf.WriteString(fmt.Sprintf("%spublic class %s :%s.%sBase \n", indent, strings.Replace(s.ServiceName, "er", "Service", 1), packageer, packageer))
+	buf.WriteString(fmt.Sprintf("%spublic class %s :%s.%sBase \n", indent, s.ServiceName, s.ProtoServiceName, s.ProtoServiceName))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent))
-	buf.WriteString(fmt.Sprintf("%sprivate readonly %s _%s;\n", indent2, s.EfContextName, s.EfContextName))
-	buf.WriteString(fmt.Sprintf("%spublic %s(%s %s)\n", indent2, strings.Replace(s.ServiceName, "er", "Service", 1), s.EfContextName, s.EfContextName))
+	buf.WriteString(fmt.Sprintf("%sprivate readonly %sContext _%sContext;\n", indent2, s.Schema, s.Schema))
+	buf.WriteString(fmt.Sprintf("%spublic %s(%sContext %sContext)\n", indent2, s.ServiceName, s.Schema, s.Schema))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent2))
 
-	buf.WriteString(fmt.Sprintf("%s _%s=%s;\n", indent3, s.EfContextName, s.EfContextName))
+	buf.WriteString(fmt.Sprintf("%s _%sContext=%sContext;\n", indent3, s.Schema, s.Schema))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 
 	buf.WriteString("\n")
@@ -168,29 +175,33 @@ func (s *SchemaCSharp) String() string {
 
 // SchemaCSharp is a representation of a protobuf schema.
 type SchemaCSharp struct {
-	Package       string
-	NameSpace     string
-	ServiceName   string
-	EfContextName string
-	Messages      []*MessageCSharp
+	Package          string
+	NameSpace        string
+	ServiceName      string
+	ProtoServiceName string
+	Schema           string //数据库名
+	EFNameSpace      string
+	Messages         []*MessageCSharp
 }
 
 type MessageCSharp struct {
-	Name          string
-	Fields        []MessageFieldCSharp
-	EfContextName string
-	Messages      []*MessageCSharp
+	Name        string
+	Fields      []MessageFieldCSharp
+	Schema      string //数据库名
+	EFNameSpace string
+	Messages    []*MessageCSharp
 }
 
 // MessageFieldCSharp represents the field of a message.
 type MessageFieldCSharp struct {
-	Typ  string
-	Name string
+	Typ   string
+	Name  string
+	IsKey bool
 }
 
 // NewMessageFieldCSharp creates a new message field.
-func NewMessageFieldCSharp(typ, name string) MessageFieldCSharp {
-	return MessageFieldCSharp{typ, name}
+func NewMessageFieldCSharp(typ, name string, isKey bool) MessageFieldCSharp {
+	return MessageFieldCSharp{typ, name, isKey}
 }
 
 func (m MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
@@ -207,16 +218,16 @@ func (m MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
 	buf.WriteString(fmt.Sprintf("%sforeach (var item in request.%ss)\n", indent3, m.Name))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent3))
 
-	buf.WriteString(fmt.Sprintf("%svar model = new %sProto.%s\n", indent4, m.Name, m.Name))
+	buf.WriteString(fmt.Sprintf("%svar model = new %s.%s\n", indent4, m.EFNameSpace, m.Name))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent4))
 	for _, v := range m.Fields {
 		buf.WriteString(fmt.Sprintf("%s%s = item.%s,\n", indent5, v.Name, v.Name))
 	}
 	buf.WriteString(fmt.Sprintf("%s};\n", indent4))
-	buf.WriteString(fmt.Sprintf("%s_%s.%s.Add(model);\n", indent4, m.EfContextName, m.Name))
+	buf.WriteString(fmt.Sprintf("%s_%sContext.%s.Add(model);\n", indent4, m.Schema, m.Name))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent3))
 
-	buf.WriteString(fmt.Sprintf("%s_%s.SaveChanges();\n", indent3, m.EfContextName))
+	buf.WriteString(fmt.Sprintf("%s_%sContext.SaveChanges();\n", indent3, m.Schema))
 
 	buf.WriteString(fmt.Sprintf("%sresult.Code = 200;\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(result);\n", indent3))
@@ -224,7 +235,14 @@ func (m MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
 }
 func (m MessageCSharp) GenRpcEditCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "Edit")
-	buf.WriteString(fmt.Sprintf("%svar data = _%s.%s.FirstOrDefault(w => w.Id == request.Id);\n", indent3, m.EfContextName, m.Name))
+	editList := []string{}
+	for _, v := range m.Fields {
+		if v.IsKey {
+			editList = append(editList, fmt.Sprintf("w.%s == request.%s", v.Name, v.Name))
+		}
+	}
+	editStr := strings.Join(editList, "&&")
+	buf.WriteString(fmt.Sprintf("%svar data = _%sContext.%s.FirstOrDefault(w => %s);\n", indent3, m.Schema, m.Name, editStr))
 	buf.WriteString(fmt.Sprintf("%sif(data == null)\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(new Edit%sReply { Code = 201, Msg = \"Not Exist!\" });\n", indent4, m.Name))
 	for _, v := range m.Fields {
@@ -232,25 +250,33 @@ func (m MessageCSharp) GenRpcEditCSharpService(buf *bytes.Buffer) {
 			buf.WriteString(fmt.Sprintf("%sdata.%s = request.%s;\n", indent3, v.Name, v.Name))
 		}
 	}
-	buf.WriteString(fmt.Sprintf("%s_%s.SaveChanges();\n", indent3, m.EfContextName))
+	buf.WriteString(fmt.Sprintf("%s_%sContext.SaveChanges();\n", indent3, m.Schema))
 	buf.WriteString(fmt.Sprintf("%sresult.Code = 200;\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(result);\n", indent3))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 }
 func (m MessageCSharp) GenRpcDelCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "Del")
-	buf.WriteString(fmt.Sprintf("%svar data = _%s.%s.FirstOrDefault(w => w.Id == request.Id);\n", indent3, m.EfContextName, m.Name))
+
+	delList := []string{}
+	for _, v := range m.Fields {
+		if v.IsKey {
+			delList = append(delList, fmt.Sprintf("w.%s == request.%s", v.Name, v.Name))
+		}
+	}
+	delStr := strings.Join(delList, "&&")
+	buf.WriteString(fmt.Sprintf("%svar data = _%sContext.%s.FirstOrDefault(w =>%s);\n", indent3, m.Schema, m.Name, delStr))
 	buf.WriteString(fmt.Sprintf("%sif(data == null)\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(new Del%sReply { Code = 201, Msg = \"Not Exist!\" });\n", indent4, m.Name))
-	buf.WriteString(fmt.Sprintf("%s_%s.%s.Remove(data);\n", indent3, m.EfContextName, m.Name))
-	buf.WriteString(fmt.Sprintf("%s_%s.SaveChanges();\n", indent3, m.EfContextName))
+	buf.WriteString(fmt.Sprintf("%s_%sContext.%s.Remove(data);\n", indent3, m.Schema, m.Name))
+	buf.WriteString(fmt.Sprintf("%s_%sContext.SaveChanges();\n", indent3, m.Schema))
 	buf.WriteString(fmt.Sprintf("%sresult.Code = 200;\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(result);\n", indent3))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 }
 func (m MessageCSharp) GenRpcGetPageListCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "GetPageList")
-	buf.WriteString(fmt.Sprintf("%svar query = _%s.%s.AsQueryable();\n", indent3, m.EfContextName, m.Name))
+	buf.WriteString(fmt.Sprintf("%svar query = _%sContext.%s.AsQueryable();\n", indent3, m.Schema, m.Name))
 	buf.WriteString(fmt.Sprintf("%sif (request.Wheres != null)\n", indent3))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent3))
 	for _, v := range m.Fields {

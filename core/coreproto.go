@@ -130,14 +130,16 @@ func dbColumns(db *sql.DB, schema, table, dbType string) ([]Column, error) {
 	switch dbType {
 	case "mysql":
 		q = "SELECT c.TABLE_NAME, c.COLUMN_NAME, c.IS_NULLABLE, c.DATA_TYPE, " +
-			"c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, c.NUMERIC_SCALE, c.COLUMN_TYPE ,c.COLUMN_COMMENT,t.TABLE_COMMENT " +
-			"FROM INFORMATION_SCHEMA.COLUMNS as c  LEFT JOIN  INFORMATION_SCHEMA.TABLES as t  on c.TABLE_NAME = t.TABLE_NAME and  c.TABLE_SCHEMA = t.TABLE_SCHEMA" +
+			"c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, c.NUMERIC_SCALE, c.COLUMN_TYPE ,c.COLUMN_COMMENT,t.TABLE_COMMENT,c.COLUMN_KEY " +
+			"FROM INFORMATION_SCHEMA.COLUMNS as c  LEFT JOIN  INFORMATION_SCHEMA.TABLES as t  on c.TABLE_NAME = t.TABLE_NAME and  c.TABLE_SCHEMA = t.TABLE_SCHEMA " +
 			" WHERE c.TABLE_SCHEMA = ?"
 
 	case "sqlserver":
 		q = "SELECT c.TABLE_NAME, c.COLUMN_NAME, c.IS_NULLABLE, c.DATA_TYPE, " +
-			"c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, c.NUMERIC_SCALE,  c.Data_TYPE AS COLUMN_TYPE,'' as COLUMN_COMMENT,'' as TABLE_COMMENT " +
+			"c.CHARACTER_MAXIMUM_LENGTH, c.NUMERIC_PRECISION, c.NUMERIC_SCALE,  c.Data_TYPE AS COLUMN_TYPE,'' as COLUMN_COMMENT,'' as TABLE_COMMENT," +
+			"'COLUMN_KEY'= CASE  WHEN  d.COLUMN_NAME is null THEN ''   ELSE 'PRI' end  " +
 			"FROM INFORMATION_SCHEMA.COLUMNS as c  LEFT JOIN  INFORMATION_SCHEMA.TABLES as t  on c.TABLE_NAME = t.TABLE_NAME and  c.TABLE_SCHEMA = t.TABLE_SCHEMA" +
+			" left join INFORMATION_SCHEMA.KEY_COLUMN_USAGE D on c.TABLE_NAME = D.TABLE_NAME and c.COLUMN_NAME=d.COLUMN_NAME " +
 			" WHERE c.TABLE_CATALOG = ?"
 	}
 	if table != "" && table != "*" {
@@ -155,7 +157,7 @@ func dbColumns(db *sql.DB, schema, table, dbType string) ([]Column, error) {
 	for rows.Next() {
 		cs := Column{}
 		err := rows.Scan(&cs.TableName, &cs.ColumnName, &cs.IsNullable, &cs.DataType,
-			&cs.CharacterMaximumLength, &cs.NumericPrecision, &cs.NumericScale, &cs.ColumnType, &cs.ColumnComment, &cs.TableComment)
+			&cs.CharacterMaximumLength, &cs.NumericPrecision, &cs.NumericScale, &cs.ColumnType, &cs.ColumnComment, &cs.TableComment, &cs.ColumnKey)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -404,7 +406,7 @@ func (m Message) GenDefaultMessage(buf *bytes.Buffer) {
 	m.Fields = mOrginFields
 }
 
-// GenRpcAddReqRespMessage gen add req message
+// GenRpcAddListReqRespMessage gen add req message
 func (m Message) GenRpcAddListReqRespMessage(buf *bytes.Buffer) {
 	mOrginName := m.Name
 	mOrginFields := m.Fields
@@ -427,13 +429,13 @@ func (m Message) GenRpcAddListReqRespMessage(buf *bytes.Buffer) {
 	//resp
 	m.Name = "AddList" + mOrginName + "Reply"
 	m.Fields = []MessageField{
-		MessageField{
+		{
 			Typ:     "int32",
 			tag:     1,
 			Name:    "Code",
 			Comment: "200:success,other:failure",
 		},
-		MessageField{
+		{
 			Typ:     "string",
 			tag:     2,
 			Name:    "Msg",
@@ -448,7 +450,7 @@ func (m Message) GenRpcAddListReqRespMessage(buf *bytes.Buffer) {
 
 }
 
-// GenRpcUpdateReqMessage gen add resp message
+// GenRpcEditReqMessage gen add resp message
 func (m Message) GenRpcEditReqMessage(buf *bytes.Buffer) {
 	mOrginName := m.Name
 	mOrginFields := m.Fields
@@ -479,13 +481,13 @@ func (m Message) GenRpcEditReqMessage(buf *bytes.Buffer) {
 	m.Name = "Edit" + mOrginName + "Reply"
 
 	m.Fields = []MessageField{
-		MessageField{
+		{
 			Typ:     "int32",
 			tag:     1,
 			Name:    "Code",
 			Comment: "200:success,other:failure",
 		},
-		MessageField{
+		{
 			Typ:     "string",
 			tag:     2,
 			Name:    "Msg",
@@ -505,9 +507,21 @@ func (m Message) GenRpcDelReqMessage(buf *bytes.Buffer) {
 	mOrginFields := m.Fields
 
 	m.Name = "Del" + mOrginName + "Request"
-	m.Fields = []MessageField{
-		{Name: "id", Typ: "int64", tag: 1, Comment: "id"},
+	m.Fields = []MessageField{}
+
+	i := 1
+	for _, v := range mOrginFields {
+		if v.IsKey {
+			m.Fields = append(m.Fields, MessageField{
+				Typ:     v.Typ,
+				tag:     i,
+				Name:    v.Name,
+				Comment: v.Comment,
+			})
+			i++
+		}
 	}
+
 	buf.WriteString(fmt.Sprintf("%s\n", m))
 
 	//reset
@@ -517,13 +531,13 @@ func (m Message) GenRpcDelReqMessage(buf *bytes.Buffer) {
 	//resp
 	m.Name = "Del" + mOrginName + "Reply"
 	m.Fields = []MessageField{
-		MessageField{
+		{
 			Typ:     "int32",
 			tag:     1,
 			Name:    "Code",
 			Comment: "200:success,other:failure",
 		},
-		MessageField{
+		{
 			Typ:     "string",
 			tag:     2,
 			Name:    "Msg",
@@ -641,11 +655,12 @@ type MessageField struct {
 	Name    string
 	tag     int
 	Comment string
+	IsKey   bool
 }
 
 // NewMessageField creates a new message field.
-func NewMessageField(typ, name string, tag int, comment string) MessageField {
-	return MessageField{typ, name, tag, comment}
+func NewMessageField(typ, name string, tag int, comment string, isKey bool) MessageField {
+	return MessageField{typ, name, tag, comment, isKey}
 }
 
 // Tag returns the unique numbered tag of the message field.
@@ -671,6 +686,7 @@ type Column struct {
 	NumericScale           sql.NullInt64
 	ColumnType             string
 	ColumnComment          string
+	ColumnKey              string
 }
 
 // Table represents a database table.
@@ -695,7 +711,6 @@ func parseColumn(s *Schema, msg *Message, col Column) error {
 			cs := string(c)
 			return "," == cs || "'" == cs
 		})
-
 		enumName := inflect.Singularize(snaker.SnakeToCamel(col.TableName)) + snaker.SnakeToCamel(col.ColumnName)
 		enum, err := newEnumFromStrings(enumName, col.ColumnComment, enums)
 		if nil != err {
@@ -727,7 +742,7 @@ func parseColumn(s *Schema, msg *Message, col Column) error {
 		return fmt.Errorf("no compatible protobuf type found for `%s`. column: `%s`.`%s`", col.DataType, col.TableName, col.ColumnName)
 	}
 
-	field := NewMessageField(fieldType, col.ColumnName, len(msg.Fields)+1, col.ColumnComment)
+	field := NewMessageField(fieldType, col.ColumnName, len(msg.Fields)+1, col.ColumnComment, col.ColumnKey != "")
 
 	err := msg.AppendField(field)
 	if nil != err {

@@ -1,6 +1,6 @@
 #### Thanks for you,give a star . 💕💕
 
- Generates a rpc file from your mysql database. 
+ Generates a rpc file from your mysql database. currently contains c#、proto
 
 ### Uses
 
@@ -37,19 +37,24 @@ Usage of sql2pb:
   -schema string
         the database schema
   -service_name string
-        the protobuf service name , defaults to the database schema.
+        the service name , defaults to the database schema+'Service'
+  -proto_service_name string
+        the proto service name , defaults to the database schema+'er'
   -table string
         the table schema，multiple tables ',' split.  (default "*")
   -user string
         the database user (default "root")
   -file_type string 
         generate file type ,proto|csharp_service
-
+  -ef_namespace string 
+        csharp_service entity framework data namespace      
+  -nameSpace string 
+        csharp_service namespace       
 ```
 
 ```
-$ rpcgenerate  -host localhost -package pb -password root -port 3306 -schema usercenter -service_name usersrv -user root > usersrv.proto
-$ rpcgenerate  -host -db sqlserver localhost -package pb -password 123456 -schema test -service_name Tester -user sa -file_type csharp_service   > TestService.cs
+$ rpcgenerate  -db mysql-host localhost -package pb -password root -port 3306 -schema usercenter -proto_service_name usersrv -user root > usersrv.proto
+$ rpcgenerate  -db sqlserver -host localhost -package pb -password 123456 -schema test -service_name TestService -proto_service_name usersrv  -user sa -file_type csharp_service -table 'test'  > TestService.cs
 
 ```
 

@@ -20,27 +20,29 @@ func main() {
 	password := flag.String("password", "root", "the database password")
 	schema := flag.String("schema", "", "the database schema")
 	table := flag.String("table", "*", "the table schema，multiple tables ',' split. ")
-	serviceName := flag.String("service_name", *schema, "the protobuf service name , defaults to the database schema.")
+	serviceName := flag.String("service_name", *schema+"Service", "the service name , defaults to the database schema+'Service'.")
+	protoServiceName := flag.String("proto_service_name", *schema+"er", "the proto service name , defaults to the database schema+'er'.")
 	packageName := flag.String("package", *schema, "the protocol buffer package. defaults to the database schema.")
 	ignoreTableStr := flag.String("ignore_tables", "", "a comma spaced list of tables to ignore")
 	ignoreColumnStr := flag.String("ignore_columns", "", "a comma spaced list of mysql columns to ignore")
 	fileType := flag.String("file_type", "proto", "generate file type ,proto|csharp_service")
+	efNameSpace := flag.String("ef_namespace", "", "csharp_service entity framework data namespace")
+	nameSpace := flag.String("nameSpace", "GrpcServices", "csharp_service namespace")
 
 	flag.Parse()
 
 	//test
 	//*dbType = "sqlserver"
-	//*host = "192.168.1.33"
-	//*user = "sa"
-	//*schema = "efosbasicsys"
-	//*serviceName = "apiservice"
-	//*fileType = "csharp_service"
-	//*packageName = " ApiProto"
+	//*host = "localhost"
+	//*user = "root"
+	//*schema = "123456"
+	//*serviceName = "testservice"
+	//*fileType = "proto"
+	//*packageName = "testProto"
 	//*port = 1433
-	//*password = " Hietech123 "
+	//*password = "123456"
 
 	if *schema == "" {
-
 		fmt.Println(" - please input the database schema ")
 		return
 	}
@@ -73,7 +75,7 @@ func main() {
 
 	switch *fileType {
 	case "proto":
-		s, err := core.GenerateProto(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *dbType)
+		s, err := core.GenerateProto(db, *table, ignoreTables, ignoreColumns, *protoServiceName, *packageName, *dbType)
 		if nil != err {
 			log.Fatal(err)
 		}
@@ -82,7 +84,12 @@ func main() {
 			fmt.Println(s)
 		}
 	case "csharp_service":
-		s, err := core.GenerateCSharpService(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *schema, *dbType)
+		if *efNameSpace == "" {
+			fmt.Println(" - please input the ef namespace ")
+			return
+		}
+
+		s, err := core.GenerateCSharpService(db, *table, ignoreTables, ignoreColumns, *serviceName, *protoServiceName, *packageName, *schema, *dbType, *nameSpace, *efNameSpace)
 		if nil != err {
 			log.Fatal(err)
 		}
