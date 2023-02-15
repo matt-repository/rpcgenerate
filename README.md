@@ -64,12 +64,7 @@ $ rpcgenerate -db mysql -host localhost -user root  -password 123456 -package pb
 $ go get -u github.com/matt-repository/rpcgenerate@latest
 ```
 
-```go
-
-```
-
 #### Thanks for 
     sql2pb : https://github.com/Mikaelemmmm/sql2pb
     schemabuf : https://github.com/mcos/schemabuf
-#### Have a problem adding wechat
-$ 943609
+#### Have a problem adding wechat: fq943609
