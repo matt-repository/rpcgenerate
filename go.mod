@@ -1,4 +1,4 @@
-module rpcgenerate
+module github.com//matt-repository/rpcgenerate
 
 go 1.18
 
