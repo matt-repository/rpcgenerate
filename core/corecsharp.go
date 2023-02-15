@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"rpcgenerate/tools/stringx"
+	"github.com/matt-repository/rpcgenerate/tools/stringx"
 	"strings"
 )
 

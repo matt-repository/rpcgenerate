@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/matt-repository/rpcgenerate/core"
 	"log"
-	"rpcgenerate/core"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"

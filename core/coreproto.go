@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"github.com/matt-repository/rpcgenerate/tools/stringx"
 	"regexp"
-	"rpcgenerate/tools/stringx"
 	"sort"
 	"strings"
 

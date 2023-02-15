@@ -2,8 +2,8 @@ package core
 
 import (
 	"database/sql"
+	"github.com/matt-repository/rpcgenerate/tools/stringx"
 	"log"
-	"rpcgenerate/tools/stringx"
 	"strings"
 )
 
