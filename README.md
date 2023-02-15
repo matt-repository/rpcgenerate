@@ -38,8 +38,6 @@ Usage of sql2pb:
         the database schema
   -service_name string
         the service name , defaults to the database schema+'Service'
-  -proto_service_name string
-        the proto service name , defaults to the database schema+'er'
   -table string
         the table schema，multiple tables ',' split.  (default "*")
   -user string
@@ -53,7 +51,7 @@ Usage of sql2pb:
 ```
 
 ```
-$ rpcgenerate  -db mysql-host localhost -package pb -password root -port 3306 -schema usercenter -proto_service_name usersrv -user root > usersrv.proto
+$ go run ./rpcgenerate.go  -db mysql -host localhost -package pb -password 123456 -port 3306 -schema test -proto_service_name tester -user root > test.proto 
 $ rpcgenerate  -db sqlserver -host localhost -package pb -password 123456 -schema test -service_name TestService -proto_service_name usersrv  -user sa -file_type csharp_service -table 'test'  > TestService.cs
 
 ```

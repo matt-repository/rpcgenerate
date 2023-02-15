@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func GenerateCSharpService(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, protoServiceName, pkg, schema, dbType, nameSpace, efNameSpace string) (*SchemaCSharp, error) {
+func GenerateCSharpService(db *sql.DB, table string, ignoreTables, ignoreColumns []string, serviceName, pkg, schema, dbType, nameSpace, efNameSpace string) (*SchemaCSharp, error) {
 	s := &SchemaCSharp{}
 	dbs, err := dbSchema(db, dbType)
 	if nil != err {
@@ -22,7 +22,6 @@ func GenerateCSharpService(db *sql.DB, table string, ignoreTables, ignoreColumns
 		s.ServiceName = schema + "Service"
 	}
 
-	s.ProtoServiceName = protoServiceName
 	s.EFNameSpace = efNameSpace
 	if "" != pkg {
 		s.Package = pkg
@@ -101,7 +100,6 @@ func dataTypeConvert(typ string) string {
 	switch typ {
 	case "char", "nchar", "varchar", "text", "longtext", "mediumtext", "tinytext":
 		fieldType = "string"
-
 	case "blob", "mediumblob", "longblob", "varbinary", "binary":
 		fieldType = "" +
 			""
@@ -145,7 +143,7 @@ func (s *SchemaCSharp) String() string {
 	buf.WriteString(fmt.Sprintf("%s/// <summary>\n", indent))
 	buf.WriteString(fmt.Sprintf("%s/// %s \n", indent, s.ServiceName))
 	buf.WriteString(fmt.Sprintf("%s/// </summary>\n", indent))
-	buf.WriteString(fmt.Sprintf("%spublic class %s :%s.%sBase \n", indent, s.ServiceName, s.ProtoServiceName, s.ProtoServiceName))
+	buf.WriteString(fmt.Sprintf("%spublic class %s :%s.%s.%sBase \n", indent, s.ServiceName, s.Package, s.ServiceName, s.ServiceName))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent))
 	buf.WriteString(fmt.Sprintf("%sprivate readonly %sContext _%sContext;\n", indent2, s.Schema, s.Schema))
 	buf.WriteString(fmt.Sprintf("%spublic %s(%sContext %sContext)\n", indent2, s.ServiceName, s.Schema, s.Schema))
@@ -175,13 +173,12 @@ func (s *SchemaCSharp) String() string {
 
 // SchemaCSharp is a representation of a protobuf schema.
 type SchemaCSharp struct {
-	Package          string
-	NameSpace        string
-	ServiceName      string
-	ProtoServiceName string
-	Schema           string //数据库名
-	EFNameSpace      string
-	Messages         []*MessageCSharp
+	Package     string
+	NameSpace   string
+	ServiceName string
+	Schema      string //数据库名
+	EFNameSpace string
+	Messages    []*MessageCSharp
 }
 
 type MessageCSharp struct {
@@ -215,21 +212,28 @@ func (m MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
 	buf.WriteString(fmt.Sprintf("%s}\n", indent3))
 
 	//赋值
-	buf.WriteString(fmt.Sprintf("%sforeach (var item in request.%ss)\n", indent3, m.Name))
+	buf.WriteString(fmt.Sprintf("%stry\n", indent3))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent3))
-
-	buf.WriteString(fmt.Sprintf("%svar model = new %s.%s\n", indent4, m.EFNameSpace, m.Name))
+	buf.WriteString(fmt.Sprintf("%sforeach (var item in request.%ss)\n", indent4, m.Name))
 	buf.WriteString(fmt.Sprintf("%s{\n", indent4))
+
+	buf.WriteString(fmt.Sprintf("%svar model = new %s.%s\n", indent5, m.EFNameSpace, m.Name))
+	buf.WriteString(fmt.Sprintf("%s{\n", indent5))
 	for _, v := range m.Fields {
-		buf.WriteString(fmt.Sprintf("%s%s = item.%s,\n", indent5, v.Name, v.Name))
+		buf.WriteString(fmt.Sprintf("%s%s = item.%s,\n", indent6, v.Name, v.Name))
 	}
-	buf.WriteString(fmt.Sprintf("%s};\n", indent4))
-	buf.WriteString(fmt.Sprintf("%s_%sContext.%s.Add(model);\n", indent4, m.Schema, m.Name))
+	buf.WriteString(fmt.Sprintf("%s};\n", indent5))
+	buf.WriteString(fmt.Sprintf("%s_%sContext.%s.Add(model);\n", indent5, m.Schema, m.Name))
+	buf.WriteString(fmt.Sprintf("%s}\n", indent4))
+	buf.WriteString(fmt.Sprintf("%s_%sContext.SaveChanges();\n", indent4, m.Schema))
+	buf.WriteString(fmt.Sprintf("%sresult.Code = 200;\n", indent4))
+	buf.WriteString(fmt.Sprintf("%s}\n", indent3))
+	buf.WriteString(fmt.Sprintf("%scatch (Exception e)\n", indent3))
+	buf.WriteString(fmt.Sprintf("%s{\n", indent3))
+	buf.WriteString(fmt.Sprintf("%sresult.Code = 201;\n", indent4))
+	buf.WriteString(fmt.Sprintf("%sresult.Msg = e.Message;\n", indent4))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent3))
 
-	buf.WriteString(fmt.Sprintf("%s_%sContext.SaveChanges();\n", indent3, m.Schema))
-
-	buf.WriteString(fmt.Sprintf("%sresult.Code = 200;\n", indent3))
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(result);\n", indent3))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 }

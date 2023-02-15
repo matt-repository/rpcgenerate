@@ -21,26 +21,24 @@ func main() {
 	schema := flag.String("schema", "", "the database schema")
 	table := flag.String("table", "*", "the table schema，multiple tables ',' split. ")
 	serviceName := flag.String("service_name", *schema+"Service", "the service name , defaults to the database schema+'Service'.")
-	protoServiceName := flag.String("proto_service_name", *schema+"er", "the proto service name , defaults to the database schema+'er'.")
 	packageName := flag.String("package", *schema, "the protocol buffer package. defaults to the database schema.")
 	ignoreTableStr := flag.String("ignore_tables", "", "a comma spaced list of tables to ignore")
 	ignoreColumnStr := flag.String("ignore_columns", "", "a comma spaced list of mysql columns to ignore")
 	fileType := flag.String("file_type", "proto", "generate file type ,proto|csharp_service")
 	efNameSpace := flag.String("ef_namespace", "", "csharp_service entity framework data namespace")
 	nameSpace := flag.String("nameSpace", "GrpcServices", "csharp_service namespace")
-
 	flag.Parse()
 
 	//test
 	//*dbType = "sqlserver"
-	//*host = "localhost"
-	//*user = "root"
-	//*schema = "123456"
-	//*serviceName = "testservice"
+	//*host = "192.168.1.33"
+	//*user = "sa"
+	//*schema = "efosbasicsys"
+	//*serviceName = "AApier"
 	//*fileType = "proto"
-	//*packageName = "testProto"
+	//*packageName = "AApiProto"
 	//*port = 1433
-	//*password = "123456"
+	//*password = "Hietech123"
 
 	if *schema == "" {
 		fmt.Println(" - please input the database schema ")
@@ -54,6 +52,7 @@ func main() {
 	}
 
 	connStr := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", *user, *password, *host, *port, *schema)
+	driName := "mysql"
 	if *dbType == "sqlserver" {
 		var conf []string
 		conf = append(conf, "Provider=SQLOLEDB")
@@ -62,8 +61,9 @@ func main() {
 		conf = append(conf, fmt.Sprintf("user id=%s", *user))           // 登陆用户名
 		conf = append(conf, fmt.Sprintf("password=%s", *password))      // 登陆密码
 		connStr = strings.Join(conf, ";")
+		driName = "adodb"
 	}
-	db, err := sql.Open("adodb", connStr)
+	db, err := sql.Open(driName, connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func main() {
 
 	switch *fileType {
 	case "proto":
-		s, err := core.GenerateProto(db, *table, ignoreTables, ignoreColumns, *protoServiceName, *packageName, *dbType)
+		s, err := core.GenerateProto(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *dbType)
 		if nil != err {
 			log.Fatal(err)
 		}
@@ -85,11 +85,11 @@ func main() {
 		}
 	case "csharp_service":
 		if *efNameSpace == "" {
-			fmt.Println(" - please input the ef namespace ")
+			fmt.Println(" - please input the entity framework namespace ")
 			return
 		}
 
-		s, err := core.GenerateCSharpService(db, *table, ignoreTables, ignoreColumns, *serviceName, *protoServiceName, *packageName, *schema, *dbType, *nameSpace, *efNameSpace)
+		s, err := core.GenerateCSharpService(db, *table, ignoreTables, ignoreColumns, *serviceName, *packageName, *schema, *dbType, *nameSpace, *efNameSpace)
 		if nil != err {
 			log.Fatal(err)
 		}
