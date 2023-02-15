@@ -51,8 +51,8 @@ Usage of sql2pb:
 ```
 
 ```
-$ go run ./rpcgenerate.go  -db mysql -host localhost -package pb -password 123456 -port 3306 -schema test -proto_service_name tester -user root > test.proto 
-$ rpcgenerate  -db sqlserver -host localhost -package pb -password 123456 -schema test -service_name TestService -proto_service_name usersrv  -user sa -file_type csharp_service -table 'test'  > TestService.cs
+$ go run ./rpcgenerate.go  -db mysql -host localhost -user root -password 123456 -package pb -port 3308 -schema test -service_name tester  > test.proto
+$ go run ./rpcgenerate.go -db mysql -host localhost -user root  -password 123456 -package pb -port 3308 -schema test -service_name TestService  -file_type csharp_service -table 'person' -ef_namespace "database.efosbasicsys" >test.cs 
 
 ```
 

@@ -30,15 +30,15 @@ func main() {
 	flag.Parse()
 
 	//test
-	//*dbType = "sqlserver"
-	//*host = "192.168.1.33"
-	//*user = "sa"
-	//*schema = "efosbasicsys"
-	//*serviceName = "AApier"
-	//*fileType = "proto"
-	//*packageName = "AApiProto"
-	//*port = 1433
-	//*password = "Hietech123"
+	*dbType = "sqlserver"
+	*host = "192.168.1.33"
+	*user = "sa"
+	*schema = "efosbasicsys"
+	*serviceName = "AApier"
+	*fileType = "proto"
+	*packageName = "AApiProto"
+	*port = 1433
+	*password = "Hietech123"
 
 	if *schema == "" {
 		fmt.Println(" - please input the database schema ")
@@ -56,10 +56,10 @@ func main() {
 	if *dbType == "sqlserver" {
 		var conf []string
 		conf = append(conf, "Provider=SQLOLEDB")
-		conf = append(conf, fmt.Sprintf("Data Source=%s,1433", *host))  // sqlserver IP 和 服务器名称
-		conf = append(conf, fmt.Sprintf("Initial Catalog=%s", *schema)) // 数据库名
-		conf = append(conf, fmt.Sprintf("user id=%s", *user))           // 登陆用户名
-		conf = append(conf, fmt.Sprintf("password=%s", *password))      // 登陆密码
+		conf = append(conf, fmt.Sprintf("Data Source=%s,%v", *host, *port)) // sqlserver IP 和 服务器名称
+		conf = append(conf, fmt.Sprintf("Initial Catalog=%s", *schema))     // 数据库名
+		conf = append(conf, fmt.Sprintf("user id=%s", *user))               // 登陆用户名
+		conf = append(conf, fmt.Sprintf("password=%s", *password))          // 登陆密码
 		connStr = strings.Join(conf, ";")
 		driName = "adodb"
 	}
