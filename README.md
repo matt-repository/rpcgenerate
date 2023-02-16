@@ -51,8 +51,8 @@ Usage of rpcgenerate:
 ```
 
 ```
-$ rpcgenerate  -db mysql -host localhost -user root -password 123456 -package pb -port 3308 -schema test -service_name tester  > test.proto
-$ rpcgenerate -db mysql -host localhost -user root  -password 123456 -package pb -port 3308 -schema test -service_name TestService  -file_type csharp_service -table 'person' -ef_namespace "database.efosbasicsys" >test.cs 
+$ rpcgenerate -db mysql -host localhost -user root -password 123456 -package pb -port 3306 -schema test -service_name tester  > test.proto
+$ rpcgenerate -db mysql -host localhost -user root -password 123456 -package pb -port 3306 -schema test -service_name testService  -file_type csharp_service -table 'person' -ef_namespace "database.test" >test.cs 
 
 ```
 
@@ -64,12 +64,7 @@ $ rpcgenerate -db mysql -host localhost -user root  -password 123456 -package pb
 $ go get -u github.com/matt-repository/rpcgenerate@latest
 ```
 
-```go
-
-```
-
 #### Thanks for 
     sql2pb : https://github.com/Mikaelemmmm/sql2pb
     schemabuf : https://github.com/mcos/schemabuf
-#### Have a problem adding wechat
-$ 943609
+#### Have a problem adding wechat: fq943609
