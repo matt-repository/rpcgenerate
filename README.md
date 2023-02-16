@@ -15,7 +15,7 @@
 ```
 $ rpcgenerate -h
 
-Usage of sql2pb:
+Usage of rpcgenerate:
   -db string
         the database type (default "mysql|sqlserver")
   -field_style string
