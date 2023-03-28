@@ -1,14 +1,17 @@
-#### Thanks for you,give a star . 💕💕
+#### 使用步骤 地址：
+    https://zhuanlan.zhihu.com/p/615606458
+    
+#### 谢谢你的star. 💕💕
 
- Generates a rpc file from your mysql database. currently contains c#、proto
+    自动生成CURD proto文件和c# CURD rpc service 文件
 
-### Uses
+### 用法
 
-##### Tips:  If your operating system is windows, the default encoding of windows command line is "GBK", you need to change it to "UTF-8", otherwise the generated file will be messed up. 
+##### Tips:如果您的操作系统是windows, windows命令行的默认编码是“GBK”，您需要将其更改为“UTF-8”，否则生成的文件会乱码。
 
 
 
-#### Use from the command line:
+#### 命令行使用::
 
 `go install github.com/matt-repository/rpcgenerate@latest`
 
@@ -58,13 +61,13 @@ $ rpcgenerate -db mysql -host localhost -user root -password 123456 -package pb 
 
 
 
-#### Use as an imported library
+#### golang导入
 
 ```sh
 $ go get -u github.com/matt-repository/rpcgenerate@latest
 ```
 
-#### Thanks for 
+#### 谢谢
     sql2pb : https://github.com/Mikaelemmmm/sql2pb
     schemabuf : https://github.com/mcos/schemabuf
-#### Have a problem adding wechat: fq943609
+#### 有问题添加微信: fq943609
