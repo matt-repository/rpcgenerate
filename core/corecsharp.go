@@ -201,7 +201,7 @@ func NewMessageFieldCSharp(typ, name string, isKey bool) MessageFieldCSharp {
 	return MessageFieldCSharp{typ, name, isKey}
 }
 
-func (m MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
+func (m *MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "AddList")
 
 	buf.WriteString(fmt.Sprintf("%sif (request.%ss.Count==0)\n", indent3, m.Name))
@@ -237,7 +237,7 @@ func (m MessageCSharp) GenRpcAddListCSharpService(buf *bytes.Buffer) {
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(result);\n", indent3))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 }
-func (m MessageCSharp) GenRpcEditCSharpService(buf *bytes.Buffer) {
+func (m *MessageCSharp) GenRpcEditCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "Edit")
 	editList := []string{}
 	for _, v := range m.Fields {
@@ -259,7 +259,7 @@ func (m MessageCSharp) GenRpcEditCSharpService(buf *bytes.Buffer) {
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(result);\n", indent3))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 }
-func (m MessageCSharp) GenRpcDelCSharpService(buf *bytes.Buffer) {
+func (m *MessageCSharp) GenRpcDelCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "Del")
 
 	delList := []string{}
@@ -278,7 +278,7 @@ func (m MessageCSharp) GenRpcDelCSharpService(buf *bytes.Buffer) {
 	buf.WriteString(fmt.Sprintf("%sreturn Task.FromResult(result);\n", indent3))
 	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 }
-func (m MessageCSharp) GenRpcGetPageListCSharpService(buf *bytes.Buffer) {
+func (m *MessageCSharp) GenRpcGetPageListCSharpService(buf *bytes.Buffer) {
 	m.rpcStart(buf, "GetPageList")
 	buf.WriteString(fmt.Sprintf("%svar query = _%sContext.%s.AsQueryable();\n", indent3, m.Schema, m.Name))
 	buf.WriteString(fmt.Sprintf("%sif (request.Wheres != null)\n", indent3))
@@ -324,7 +324,7 @@ func (m MessageCSharp) GenRpcGetPageListCSharpService(buf *bytes.Buffer) {
 	buf.WriteString(fmt.Sprintf("%s}\n", indent2))
 }
 
-func (m MessageCSharp) rpcStart(buf *bytes.Buffer, funcType string) {
+func (m *MessageCSharp) rpcStart(buf *bytes.Buffer, funcType string) {
 	funcName := funcType + m.Name
 	request := funcName + "Request"
 	reply := funcName + "Reply"

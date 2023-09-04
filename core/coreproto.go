@@ -321,7 +321,7 @@ type Message struct {
 }
 
 // GenDefaultMessage gen default message
-func (m Message) GenDefaultMessage(buf *bytes.Buffer) {
+func (m *Message) GenDefaultMessage(buf *bytes.Buffer) {
 	mOrginName := m.Name
 	mOrginFields := m.Fields
 	m.Fields = m.MessageFieldCover()
@@ -333,7 +333,7 @@ func (m Message) GenDefaultMessage(buf *bytes.Buffer) {
 }
 
 // GenRpcAddListReqRespMessage gen add req message
-func (m Message) GenRpcAddListReqRespMessage(buf *bytes.Buffer) {
+func (m *Message) GenRpcAddListReqRespMessage(buf *bytes.Buffer) {
 	mOrginName := m.Name
 	mOrginFields := m.Fields
 
@@ -377,7 +377,7 @@ func (m Message) GenRpcAddListReqRespMessage(buf *bytes.Buffer) {
 }
 
 // GenRpcEditReqMessage gen add resp message
-func (m Message) GenRpcEditReqMessage(buf *bytes.Buffer) {
+func (m *Message) GenRpcEditReqMessage(buf *bytes.Buffer) {
 	mOrginName := m.Name
 	mOrginFields := m.Fields
 	m.Name = "Edit" + mOrginName + "Request"
@@ -413,7 +413,7 @@ func (m Message) GenRpcEditReqMessage(buf *bytes.Buffer) {
 }
 
 // GenRpcDelReqMessage gen add resp message
-func (m Message) GenRpcDelReqMessage(buf *bytes.Buffer) {
+func (m *Message) GenRpcDelReqMessage(buf *bytes.Buffer) {
 	mOrginName := m.Name
 	mOrginFields := m.Fields
 
@@ -463,7 +463,7 @@ func (m Message) GenRpcDelReqMessage(buf *bytes.Buffer) {
 }
 
 // GenRpcGetPageListReqMessage gen add resp message
-func (m Message) GenRpcGetPageListReqMessage(buf *bytes.Buffer) {
+func (m *Message) GenRpcGetPageListReqMessage(buf *bytes.Buffer) {
 	mOrginName := m.Name
 	mOrginFields := m.Fields
 
@@ -516,7 +516,7 @@ func (m Message) GenRpcGetPageListReqMessage(buf *bytes.Buffer) {
 	m.Fields = mOrginFields
 }
 
-func (m Message) MessageFieldCover() []MessageField {
+func (m *Message) MessageFieldCover() []MessageField {
 	var filedTag int
 	curFields := []MessageField{}
 	for _, field := range m.Fields {
@@ -547,7 +547,7 @@ func (m Message) MessageFieldCover() []MessageField {
 }
 
 // String returns a string representation of a Message.
-func (m Message) String() string {
+func (m *Message) String() string {
 	var buf bytes.Buffer
 
 	buf.WriteString(fmt.Sprintf("message %s {\n", m.Name))
