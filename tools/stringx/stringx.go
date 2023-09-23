@@ -96,8 +96,8 @@ func (s String) ToSnake() string {
 	return strings.Join(target, "_")
 }
 
-// Untitle return the original string if rune is not letter at index 0
-func (s String) Untitle() string {
+// UnTitle return the original string if rune is not letter at index 0
+func (s String) UnTitle() string {
 	if s.IsEmptyOrSpace() {
 		return s.source
 	}

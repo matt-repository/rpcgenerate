@@ -1,0 +1,102 @@
+{{range .Imports}}using {{.}};
+{{end}}
+namespace {{.NameSpace}}
+{
+    /// <summary>
+    /// {{.ServiceName}}
+    /// </summary>
+    public class {{.ServiceName}} :{{.Schema}}.{{.ServiceName}}.{{.ServiceName}}Base
+    {
+        private readonly {{.Schema}}Context _{{.Schema}}Context;
+        public {{.ServiceName}}({{.Schema}}Context {{.Schema}}Context)
+        {
+             _{{.Schema}}Context={{.Schema}}Context;
+        }
+{{range .Messages}}
+        // ------------------------------------
+        //    {{.Name}}Service
+        // ------------------------------------
+        public override Task<AddList{{.Name}}Reply> AddList{{.Name}}(AddList{{.Name}}Request request, ServerCallContext context)
+        {
+             var result= new AddList{{.Name}}Reply();
+             if (request.{{.Name}}s.Count==0)
+             {
+                 result.Code = 201;
+                 result.Msg = "Data cannot be empty";
+                 return Task.FromResult(result);
+             }
+             try
+             {
+                 foreach (var item in request.{{.Name}}s)
+                 {
+                     var model = new {{$.EFNameSpace}}.{{.Name}}
+                     {  {{range .Fields}}
+                        {{.Name}} = item.{{.Name}},{{end}}
+                     };
+                     _{{$.Schema}}Context.{{.Name}}.Add(model);
+                 }
+                 _{{$.Schema}}Context.SaveChanges();
+                 result.Code = 200;
+             }
+             catch (Exception e)
+             {
+                 result.Code = 201;
+                 result.Msg = e.Message;
+             }
+             return Task.FromResult(result);
+        }
+
+        public override Task<Edit{{.Name}}Reply> Edit{{.Name}}(Edit{{.Name}}Request request, ServerCallContext context)
+        {
+            var result= new Edit{{.Name}}Reply();
+            var data = _{{$.Schema}}Context.{{.Name}}.FirstOrDefault(w =>{{range $index, $value :=.PriFields}}{{if eq $index 0}}w.{{$value.Name}}==request.{{$value.Name}}{{else}}&&w.{{$value.Name}}==request.{{$value.Name}}{{end}}{{end}});
+            if(data == null)
+                return Task.FromResult(new Edit{{.Name}}Reply { Code = 201, Msg = "Not Exist!" });
+            data.Name = request.Name;
+            _{{$.Schema}}Context.SaveChanges();
+            result.Code = 200;
+            return Task.FromResult(result);
+        }
+
+        public override Task<Del{{.Name}}Reply> Del{{.Name}}(Del{{.Name}}Request request, ServerCallContext context)
+        {
+            var result= new Del{{.Name}}Reply();
+            var data = _{{$.Schema}}Context.{{.Name}}.FirstOrDefault(w =>{{range $index, $value :=.PriFields}}{{if eq $index 0}}w.{{$value.Name}}==request.{{$value.Name}}{{else}} && w.{{$value.Name}}==request.{{$value.Name}}{{end}}{{end}});
+            if(data == null)
+                return Task.FromResult(new Del{{.Name}}Reply { Code = 201, Msg = "Not Exist!" });
+            _{{$.Schema}}Context.{{.Name}}.Remove(data);
+            _{{$.Schema}}Context.SaveChanges();
+            result.Code = 200;
+            return Task.FromResult(result);
+        }
+
+        public override Task<GetPageList{{.Name}}Reply> GetPageList{{.Name}}(GetPageList{{.Name}}Request request, ServerCallContext context)
+        {
+            var result= new GetPageList{{.Name}}Reply();
+            var query = _{{$.Schema}}Context.{{.Name}}.AsQueryable();
+            if (request.Wheres != null)
+            {  {{range .Fields}}
+               {{if eq .Typ "string"}}if (!string.IsNullOrEmpty(request.Wheres.{{.Name}})){{else}}if (request.Wheres.{{.Name}} > 0) {{end}}
+               {
+                  query = query.Where(w => w.{{.Name}} == request.Wheres.{{.Name}});
+               }{{end}}
+            }
+            result.Total = query.Count();
+            if (request.Pagings != null)
+            {
+                query = query.Skip((request.Pagings.PageIndex - 1) * request.Pagings.PageSize).Take(request.Pagings.PageSize);
+            }
+            var list = query.ToList();
+            foreach (var item in list)
+            {
+                var model = new {{.Name}}Proto.{{.Name}}
+                { {{range .Fields}}
+                   {{.Name}} = item.{{.Name}},{{end}}
+                };
+                result.{{.Name}}s.Add(model);
+            }
+            return Task.FromResult(result);
+        }
+{{end}}
+    }
+}

@@ -1,0 +1,75 @@
+syntax = "{{.Syntax}}";
+
+package {{.Schema}};
+{{range .Imports}}import "{{.}}";{{end}}
+
+// ------------------------------------
+// Rpc Func
+// ------------------------------------
+
+service {{.Schema}}er{
+{{range .Messages}}
+	 //-----------------------{{.Name}}-----------------------
+	 rpc AddList{{.Name}}(AddList{{.Name}}Request) returns (AddList{{.Name}}Reply);
+	 rpc Edit{{.Name}}(Edit{{.Name}}Request) returns (Edit{{.Name}}Reply);
+	 rpc Del{{.Name}}(Del{{.Name}}Request) returns (Del{{.Name}}Reply);
+	 rpc GetPageList{{.Name}}(GetPageList{{.Name}}Request) returns (GetPageList{{.Name}}Reply);
+{{end}}
+}
+
+
+// ------------------------------------
+// Messages
+// ------------------------------------
+
+{{range .Messages}}
+//--------------------------------{{.Name}}--------------------------------
+message {{.Name}} { {{range .Fields}}
+    {{.Typ}} {{.Name}}= {{.Tag}}; {{end}}
+}
+
+message AddList{{.Name}}Request {
+    repeated {{.Name}} {{.Name}}s = 1;
+}
+
+message AddList{{.Name}}Reply {
+    int32 Code = 1; //200:success,other:failure
+    string Msg = 2; //failure cause
+}
+
+message Edit{{.Name}}Request { {{range .Fields}}
+    {{.Typ}} {{.Name}}= {{.Tag}}; {{end}}
+}
+
+message Edit{{.Name}}Reply {
+    int32 Code = 1; //200:success,other:failure
+    string Msg = 2; //failure cause
+}
+
+message Del{{.Name}}Request { {{range .PriFields}}
+    {{.Typ}} {{.Name}}= {{.Tag}}; {{end}}
+}
+
+message Del{{.Name}}Reply {
+    int32 Code = 1; //200:success,other:failure
+    string Msg = 2; //failure cause
+}
+
+message GetPageList{{.Name}}Request {
+    Where Wheres = 1; //
+    Paging Pagings = 2; //
+    message Where { {{range .Fields}}
+        {{.Typ}} {{.Name}}= {{.Tag}};{{end}}
+    }
+    message Paging {
+        int32 PageIndex = 1;
+        int32 PageSize = 2;
+    }
+}
+
+message GetPageList{{.Name}}Reply {
+    repeated {{.Name}} {{.Name}}s = 1;
+    int32 Total = 2;
+}
+{{end}}
+
